@@ -63,7 +63,8 @@ var options = {
     "doc": "application/msword",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "zip": "application/zip, application/x-compressed-zip",
-    "txt": "text/plain"
+    "txt": "text/plain",
+    "csv": "text/csv"
   }
   /* Uncomment and edit this section to provide the service via HTTPS:
    ssl: {
