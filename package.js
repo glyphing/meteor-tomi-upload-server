@@ -1,5 +1,5 @@
 Package.describe({
-  name: 'tomi:upload-server',
+  name: 'gly:upload-server',
   summary: 'Upload server for Meteor. Allows to save and serve files from arbitrary directory',
   version: '1.2.9',
   git: 'https://github.com/tomitrescak/meteor-tomi-upload-server.git'

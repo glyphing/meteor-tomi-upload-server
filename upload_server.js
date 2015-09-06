@@ -337,22 +337,24 @@ UploadHandler.prototype.post = function () {
     };
   form.uploadDir = options.tmpDir;
   form.on('fileBegin', function (name, file) {
-    tmpFiles.push(file.path);
-    var fileInfo = new FileInfo(file, handler.req, form);
+    Fiber( function() {
+      tmpFiles.push(file.path);
+      var fileInfo = new FileInfo(file, handler.req, form);
 
-    //fileInfo.safeName();
+      //fileInfo.safeName();
 
-    // validate post
-    var error = options.validateFile(file);
-    if (error) {
-      res.writeHead(403, {'Content-Type': 'text/plain'});
-      res.write(error);
-      res.end();
-      return;
-    }
+      // validate post
+      var error = options.validateFile(file);
+      if (error) {
+        res.writeHead(403, {'Content-Type': 'text/plain'});
+        res.write(error);
+        res.end();
+        return;
+      }
 
-    map[path.basename(file.path)] = fileInfo;
-    files.push(fileInfo);
+      map[path.basename(file.path)] = fileInfo;
+      files.push(fileInfo);
+    }).run();
   }).on('field', function (name, value) {
     if (name === 'redirect') {
       redirect = value;
@@ -364,85 +366,86 @@ UploadHandler.prototype.post = function () {
     //  console.log('Form field: ' + name + "-" + value);
     this.formFields[name] = value;
   }).on('file', function (name, file) {
-    var fileInfo = map[path.basename(file.path)];
-    fileInfo.size = file.size;
+    var that = this;
+    Fiber( function() {
+      var fileInfo = map[path.basename(file.path)];
+      fileInfo.size = file.size;
 
-    var error = fileInfo.validate();
-    if (error) {
-      // delete file
-      fs.unlinkSync(file.path);
-      // callback with error
-      handler.callback({error: error});
-      return;
-    }
-
-    // we can store files in subdirectories
-    var folder = options.getDirectory(fileInfo, this.formFields);
-
-    // make safe directory, disable all '.'
-    folder.replace(/\./g, '');
-
-    // check if directory exists, if not, create all the directories
-    var subFolders = folder.split('/');
-    var currentFolder = options.uploadDir;
-    for (var i = 0; i < subFolders.length; i++) {
-      currentFolder += '/' + subFolders[i];
-
-      if (!fs.existsSync(currentFolder)) {
-        fs.mkdirSync(currentFolder);
+      var error = fileInfo.validate();
+      if (error) {
+        // delete file
+        fs.unlinkSync(file.path);
+        // callback with error
+        handler.callback({error: error});
+        return;
       }
-    }
 
-    // possibly rename file if needed;
-    var newFileName = options.getFileName(fileInfo, this.formFields);
+      // we can store files in subdirectories
+      var folder = options.getDirectory(fileInfo, that.formFields);
 
-    // make safe file name
-    newFileName = getSafeName(currentFolder, newFileName);
+      // make safe directory, disable all '.'
+      folder.replace(/\./g, '');
 
-    // set the file name
-    fileInfo.name = newFileName;
-    fileInfo.path = folder + "/" + newFileName;
+      // check if directory exists, if not, create all the directories
+      var subFolders = folder.split('/');
+      var currentFolder = options.uploadDir;
+      for (var i = 0; i < subFolders.length; i++) {
+        currentFolder += '/' + subFolders[i];
 
-    // Move the file to the final destination
-    var destinationFile = currentFolder + "/" + newFileName;
-    try
-    {
-     	// Try moving through renameSync
-       	fs.renameSync(file.path, destinationFile)
-    }
-    catch(exception)
-    {
-    	// if moving failed, try a copy + delete instead, this to support moving work between partitions
-    	var is = fs.createReadStream(file.path);
-		var os = fs.createWriteStream(destinationFile);
-		is.pipe(os);
-		is.on('end',function() {
-    		fs.unlinkSync(file.path);
-		});
-    }
-
-    if (options.imageTypes.test(fileInfo.name)) {
-      Object.keys(options.imageVersions).forEach(function (version) {
-        counter += 1;
-        var opts = options.imageVersions[version];
-
-        // check if version directory exists
-        if (!fs.existsSync(currentFolder + '/' + version)) {
-          fs.mkdirSync(currentFolder + '/' + version);
+        if (!fs.existsSync(currentFolder)) {
+          fs.mkdirSync(currentFolder);
         }
+      }
 
-        imageMagick.resize({
-          width: opts.width,
-          height: opts.height,
-          srcPath: currentFolder + '/' + newFileName,
-          dstPath: currentFolder + '/' + version + '/' + newFileName
-        }, finish);
-      });
-    }
+      // possibly rename file if needed;
+      var newFileName = options.getFileName(fileInfo, that.formFields);
 
-    // call the feedback within its own fiber
-    var formFields = this.formFields;
-    Fiber(function () {
+      // make safe file name
+      newFileName = getSafeName(currentFolder, newFileName);
+
+      // set the file name
+      fileInfo.name = newFileName;
+      fileInfo.path = folder + "/" + newFileName;
+
+      // Move the file to the final destination
+      var destinationFile = currentFolder + "/" + newFileName;
+      try
+      {
+       	// Try moving through renameSync
+         	fs.renameSync(file.path, destinationFile)
+      }
+      catch(exception)
+      {
+      	// if moving failed, try a copy + delete instead, this to support moving work between partitions
+      	var is = fs.createReadStream(file.path);
+  		var os = fs.createWriteStream(destinationFile);
+  		is.pipe(os);
+  		is.on('end',function() {
+      		fs.unlinkSync(file.path);
+  		});
+      }
+
+      if (options.imageTypes.test(fileInfo.name)) {
+        Object.keys(options.imageVersions).forEach(function (version) {
+          counter += 1;
+          var opts = options.imageVersions[version];
+
+          // check if version directory exists
+          if (!fs.existsSync(currentFolder + '/' + version)) {
+            fs.mkdirSync(currentFolder + '/' + version);
+          }
+
+          imageMagick.resize({
+            width: opts.width,
+            height: opts.height,
+            srcPath: currentFolder + '/' + newFileName,
+            dstPath: currentFolder + '/' + version + '/' + newFileName
+          }, finish);
+        });
+      }
+
+      // call the feedback within its own fiber
+      var formFields = that.formFields;
       options.finished(fileInfo, formFields);
     }).run();
 
