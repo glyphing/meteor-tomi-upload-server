@@ -1,7 +1,7 @@
 Package.describe({
   name: 'gly:upload-server',
   summary: 'Upload server for Meteor. Allows to save and serve files from arbitrary directory',
-  version: '1.2.10',
+  version: '1.3.0',
   git: 'https://github.com/glyphing/meteor-tomi-upload-server.git',
   documentation: 'README.md'
 });
