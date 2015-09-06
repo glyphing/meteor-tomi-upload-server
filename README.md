@@ -1,3 +1,12 @@
+This package is a fork of the package [`tomi:upload-server`](https://atmospherejs.com/tomi/upload-server).
+
+Differences:
+* some additional event handlers code has been put in a Fiber
+
+It follows the description of the forked package.
+
+--------
+
 This is a server interface package for the [Meteor Uploads](https://github.com/tomitrescak/meteor-uploads)
 
 For the full documentation and instructions on use go to [https://github.com/tomitrescak/meteor-uploads](https://github.com/tomitrescak/meteor-uploads).
